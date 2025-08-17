@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ORM Project - User Manager</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-dark text-white">
+  <div class="container py-5">
+    <h1 class="text-center text-warning mb-4">🎨 ORM User Manager</h1>
+
+    <!-- Add Form -->
+    <form id="addForm" class="card p-3 bg-secondary mb-4">
+      <div class="row g-3">
+        <div class="col-md-5">
+          <label class="form-label">نام</label>
+          <input type="text" name="name" id="addName" class="form-control" placeholder="نام کاربر">
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">ایمیل</label>
+          <input type="email" name="email" id="addEmail" class="form-control" placeholder="ایمیل کاربر" required>
+        </div>
+        <div class="col-md-2 d-grid align-items-end">
+          <button type="submit" class="btn btn-success">➕ افزودن</button>
+        </div>
+      </div>
+      <div id="addError" class="text-danger mt-2"></div>
+    </form>
+
+    <!-- Search -->
+    <form id="searchForm" class="card p-3 bg-secondary mb-4">
+      <div class="row g-3">
+        <div class="col-md-5">
+          <label class="form-label">جستجو بر اساس نام</label>
+          <input type="text" name="q_name" id="q_name" class="form-control" placeholder="مثلاً Ali">
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">جستجو بر اساس ایمیل</label>
+          <input type="text" name="q_email" id="q_email" class="form-control" placeholder="مثلاً example.com">
+        </div>
+        <div class="col-md-2 d-grid align-items-end">
+          <button type="submit" class="btn btn-info">🔎 جستجو</button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Users Table -->
+    <div class="card p-3 bg-secondary">
+      <h3 class="text-info">📋 لیست کاربران</h3>
+      <table class="table table-dark table-striped mt-3" id="usersTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>نام</th>
+            <th>ایمیل</th>
+            <th>عملیات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr data-id="{{ user.id }}" class="{% if user.id in highlight_ids %}table-warning{% endif %}">
+            <td>{{ user.id }}</td>
+            <td>{{ user.name or '-' }}</td>
+            <td>{{ user.email }}</td>
+            <td>
+              <button class="btn btn-danger btn-sm deleteBtn">🗑 حذف</button>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="4" class="text-center text-warning">هیچ کاربری وجود ندارد 😢</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const addForm = document.getElementById("addForm");
+    const usersTable = document.getElementById("usersTable").querySelector("tbody");
+    const addError = document.getElementById("addError");
+
+    // --- Add User ---
+    addForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        addError.textContent = "";
+        const name = document.getElementById("addName").value.trim();
+        const email = document.getElementById("addEmail").value.trim();
+        if(!email){ addError.textContent="ایمیل الزامی است!"; return; }
+        try {
+            const res = await axios.post("/add", new URLSearchParams({name,email}));
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-id", res.data.id);
+            tr.innerHTML = `
+                <td>${res.data.id}</td>
+                <td>${res.data.name || '-'}</td>
+                <td>${res.data.email}</td>
+                <td><button class="btn btn-danger btn-sm deleteBtn">🗑 حذف</button></td>
+            `;
+            usersTable.appendChild(tr);
+        } catch(err){
+            addError.textContent = err.response?.data?.error || "خطا در افزودن کاربر!";
+        }
+    });
+
+    // --- Delete User ---
+    usersTable.addEventListener("click", async (e) => {
+        if(e.target.classList.contains("deleteBtn")){
+            const tr = e.target.closest("tr");
+            const userId = tr.getAttribute("data-id");
+            try {
+                const res = await axios.post(`/delete/${userId}`);
+                if(res.data.success) tr.remove();
+            } catch(err){ console.error(err); }
+        }
+    });
+
+    // --- Search ---
+    const searchForm = document.getElementById("searchForm");
+    searchForm.addEventListener("submit", (e)=>{
+        e.preventDefault();
+        const qn = document.getElementById("q_name").value.trim().toLowerCase();
+        const qe = document.getElementById("q_email").value.trim().toLowerCase();
+        document.querySelectorAll("#usersTable tbody tr").forEach(tr=>{
+            const name = tr.children[1].textContent.toLowerCase();
+            const email = tr.children[2].textContent.toLowerCase();
+            if( (qn && name.includes(qn)) || (qe && email.includes(qe)) ){
+                tr.classList.add("table-warning");
+            } else {
+                tr.classList.remove("table-warning");
+            }
+        });
+    });
+});
+</script>
+</body>
+</html>
